@@ -88,11 +88,34 @@ def upsert_entities_and_relations(entities: List[Dict[str, str]], relations: Lis
 
 def get_neighbors(entity_name: str, limit: int = 15) -> List[Dict[str, Any]]:
     """
-    Retrieves all direct neighbors of a specific entity.
+    Retrieves all direct neighbors of a specific entity using fuzzy matching.
     """
     query = """
-    MATCH (e:Entity {name: $name})-[r]-(n:Entity)
+    MATCH (e:Entity) WHERE toLower(e.name) CONTAINS toLower($name)
+    MATCH (e)-[r]-(n:Entity)
     RETURN type(r) AS rel_type, n.name AS neighbor_name, n.label AS neighbor_label
+    LIMIT $limit
+    """
+    records = run_read_query(query, {"name": entity_name, "limit": limit})
+    return records
+
+def get_two_hop_neighbors(entity_name: str, limit: int = 20) -> List[Dict[str, Any]]:
+    """
+    Retrieves 2-hop neighbors of a specific entity using fuzzy matching, representing paths:
+    (Entity) <-> (Neighbor) <-> (Neighbor's Neighbor)
+    """
+    query = """
+    MATCH (e:Entity) WHERE toLower(e.name) CONTAINS toLower($name)
+    MATCH (e)-[r1]-(n1:Entity)
+    OPTIONAL MATCH (n1)-[r2]-(n2:Entity)
+    WHERE n2 <> e
+    RETURN e.name AS entity_name, 
+           type(r1) AS r1_type, 
+           n1.name AS n1_name, 
+           n1.label AS n1_label,
+           type(r2) AS r2_type, 
+           n2.name AS n2_name, 
+           n2.label AS n2_label
     LIMIT $limit
     """
     records = run_read_query(query, {"name": entity_name, "limit": limit})

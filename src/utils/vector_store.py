@@ -96,7 +96,8 @@ def query_vector_store(query_text: str, top_k: int = 5) -> List[Dict[str, Any]]:
     response = index.query(
         vector=query_vector,
         top_k=top_k,
-        include_metadata=True
+        include_metadata=True,
+        filter={"type": {"$ne": "conversation"}}
     )
     
     results = []
